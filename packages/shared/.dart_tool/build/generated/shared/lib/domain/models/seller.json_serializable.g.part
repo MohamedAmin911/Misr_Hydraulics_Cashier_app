@@ -1,0 +1,21 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_Seller _$SellerFromJson(Map<String, dynamic> json) => _Seller(
+  id: json['id'] as String?,
+  name: json['name'] as String,
+  password: json['password'] as String,
+  branch: json['branch'] as String,
+  invoiceCount: (json['invoiceCount'] as num?)?.toInt() ?? 0,
+  createdAt: const TimestampConverter().fromJson(json['createdAt']),
+);
+
+Map<String, dynamic> _$SellerToJson(_Seller instance) => <String, dynamic>{
+  'id': instance.id,
+  'name': instance.name,
+  'password': instance.password,
+  'branch': instance.branch,
+  'invoiceCount': instance.invoiceCount,
+  'createdAt': const TimestampConverter().toJson(instance.createdAt),
+};

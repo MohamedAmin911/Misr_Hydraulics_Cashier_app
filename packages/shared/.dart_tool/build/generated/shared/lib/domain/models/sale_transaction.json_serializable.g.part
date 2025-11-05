@@ -1,0 +1,27 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_SaleTransaction _$SaleTransactionFromJson(Map<String, dynamic> json) =>
+    _SaleTransaction(
+      id: json['id'] as String?,
+      date: const TimestampConverter().fromJson(json['date']),
+      sellerId: json['sellerId'] as String,
+      items: (json['items'] as List<dynamic>)
+          .map((e) => TransactionItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      totalSell: (json['totalSell'] as num).toDouble(),
+      totalCost: (json['totalCost'] as num).toDouble(),
+      totalProfit: (json['totalProfit'] as num).toDouble(),
+    );
+
+Map<String, dynamic> _$SaleTransactionToJson(_SaleTransaction instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'date': const TimestampConverter().toJson(instance.date),
+      'sellerId': instance.sellerId,
+      'items': instance.items,
+      'totalSell': instance.totalSell,
+      'totalCost': instance.totalCost,
+      'totalProfit': instance.totalProfit,
+    };

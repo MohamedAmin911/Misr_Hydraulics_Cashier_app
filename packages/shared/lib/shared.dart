@@ -1,0 +1,25 @@
+library shared;
+
+export 'core/app_config.dart';
+export 'core/constants.dart';
+export 'core/services/connectivity_service.dart';
+export 'core/services/currency_formatter.dart';
+export 'core/services/firestore_service.dart';
+export 'core/services/pdf_receipt_builder.dart';
+export 'core/services/printing_service.dart';
+export 'core/theme/app_theme.dart';
+export 'data/firestore_paths.dart';
+export 'data/repositories_impl/category_repository_impl.dart';
+export 'data/repositories_impl/product_repository_impl.dart';
+export 'data/repositories_impl/seller_repository_impl.dart';
+export 'data/repositories_impl/transaction_repository_impl.dart';
+export 'domain/models/cart_item.dart';
+export 'domain/models/category.dart';
+export 'domain/models/product.dart' hide TimestampConverter;
+export 'domain/models/sale_transaction.dart' hide TimestampConverter;
+export 'domain/models/seller.dart' hide TimestampConverter;
+export 'domain/models/transaction_item.dart';
+export 'domain/repositories/category_repository.dart';
+export 'domain/repositories/product_repository.dart';
+export 'domain/repositories/seller_repository.dart';
+export 'domain/repositories/transaction_repository.dart';
