@@ -4,6 +4,8 @@ import 'package:seller_app/features/cart/presentation/cart_controller.dart';
 import 'package:shared/presentation/widgets/loading.dart';
 import 'package:shared/shared.dart';
 import '../../auth/seller_guard.dart';
+import 'dart:async';
+import 'dart:io' show Platform;
 
 final productsMapProvider = StreamProvider.autoDispose<Map<String, Product>>((
   ref,
@@ -67,39 +69,53 @@ class CartTab extends ConsumerWidget {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text(
-                                  'تمت العملية بنجاح، سيتم طباعة الفاتورة...',
-                                ),
+                                content: Text('تمت العملية بنجاح.'),
                               ),
                             );
                           }
 
                           // Defer printing a bit to avoid native dialog race on Windows
-                          Future.delayed(
-                            const Duration(milliseconds: 400),
-                            () async {
-                              try {
-                                final bytes = await PdfReceiptBuilder.build(
-                                  tx: tx,
-                                  forAdmin: false,
-                                );
-                                await PrintingService.printPdf(
+                          Future.delayed(const Duration(milliseconds: 400), () async {
+                            try {
+                              final bytes = await PdfReceiptBuilder.build(
+                                tx: tx,
+                                forAdmin: false,
+                              );
+
+                              if (Platform.isWindows) {
+                                // SAFEST on Windows: open the PDF in the default viewer
+                                final fileName =
+                                    'ELAboudy_Receipt_${tx.id ?? DateTime.now().millisecondsSinceEpoch}.pdf';
+                                await PrintingService.saveAndOpenPdf(
                                   bytes,
-                                  jobName: 'إيصال ELAboudy',
+                                  filename: fileName,
                                 );
-                              } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
+                                    const SnackBar(
                                       content: Text(
-                                        'تعذرت الطباعة، تم حفظ/فتح الفاتورة كملف PDF. ($e)',
+                                        'تم فتح الفاتورة كملف PDF. يمكنك طباعتها من العارض.',
                                       ),
                                     ),
                                   );
                                 }
+                              } else {
+                                // Web/macOS/Linux can use the print dialog safely
+                                await PrintingService.printPdf(
+                                  bytes,
+                                  jobName: 'إيصال ELAboudy',
+                                );
                               }
-                            },
-                          );
+                            } catch (e) {
+                              // if (context.mounted) {
+                              //   ScaffoldMessenger.of(context).showSnackBar(
+                              //     SnackBar(
+                              //       content: Text('تعذرت معالجة الفاتورة: $e'),
+                              //     ),
+                              //   );
+                              // }
+                            }
+                          });
                         } catch (e) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
