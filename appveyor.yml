@@ -1,0 +1,78 @@
+version: '{build}'
+
+image: Visual Studio 2022
+
+build_script:
+  - ps: |
+      # 1) Install Flutter 3.35.7 (Dart 3.9+)
+      git clone https://github.com/flutter/flutter.git -b 3.35.7 C:\flutter
+      $env:Path = "C:\flutter\bin;" + $env:Path
+      flutter --version
+      dart --version
+
+      # 2) Enable desktop
+      flutter config --enable-windows-desktop
+
+      # 3) Sanity check: firebase_options.dart
+      if (-not (Test-Path "apps/admin_app/lib/firebase_options.dart")) { throw "Missing admin firebase_options.dart" }
+      if (-not (Test-Path "apps/seller_app/lib/firebase_options.dart")) { throw "Missing seller firebase_options.dart" }
+
+      # 4) Shared deps + codegen
+      Push-Location packages/shared
+      flutter pub get
+      flutter pub run build_runner build --delete-conflicting-outputs
+      Pop-Location
+
+      # 5) Build admin
+      Push-Location apps/admin_app
+      flutter pub get
+      flutter build windows --release -t lib/main_admin.dart
+      Pop-Location
+
+      # 6) Build seller
+      Push-Location apps/seller_app
+      flutter pub get
+      flutter build windows --release -t lib/main_seller.dart
+      Pop-Location
+
+      # 7) Package Admin
+      New-Item -ItemType Directory -Force -Path dist | Out-Null
+      $buildRoot = "apps/admin_app/build/windows"
+      $runner = "$buildRoot/x64/runner/Release"
+      $dst = "dist\ELAboudy_Admin_$($env:APPVEYOR_BUILD_NUMBER)"
+      Copy-Item -Recurse -Force "$runner\*" "$dst"
+
+      Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+        Copy-Item -Force $_.FullName (Join-Path $dst $_.Name)
+      }
+
+      # Explicit copy for firebase plugins (just in case)
+      $fbCore = Get-ChildItem -Path $buildRoot -Recurse -Filter "firebase_core_plugin.dll" -ErrorAction SilentlyContinue
+      $fsPlug = Get-ChildItem -Path $buildRoot -Recurse -Filter "cloud_firestore_plugin.dll" -ErrorAction SilentlyContinue
+      if ($fbCore) { Copy-Item -Force $fbCore.FullName (Join-Path $dst "firebase_core_plugin.dll") }
+      if ($fsPlug) { Copy-Item -Force $fsPlug.FullName (Join-Path $dst "cloud_firestore_plugin.dll") }
+
+      if (Test-Path "$dst\admin_app.exe") { Rename-Item "$dst\admin_app.exe" "ELAboudy_Admin.exe" }
+
+      Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst\VC_redist.x64.exe"
+      Set-Content -Path "$dst\README.txt" -Value "Run VC_redist.x64.exe if the app doesn’t start, then run ELAboudy_Admin.exe"
+
+      # 8) Package Seller
+      $buildRoot = "apps/seller_app/build/windows"
+      $runner = "$buildRoot/x64/runner/Release"
+      $dst2 = "dist\ELAboudy_Seller_$($env:APPVEYOR_BUILD_NUMBER)"
+      Copy-Item -Recurse -Force "$runner\*" "$dst2"
+
+      Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+        Copy-Item -Force $_.FullName (Join-Path $dst2 $_.Name)
+      }
+
+      $fbCore2 = Get-ChildItem -Path $buildRoot -Recurse -Filter "firebase_core_plugin.dll" -ErrorAction SilentlyContinue
+      $fsPlug2 = Get-ChildItem -Path $buildRoot -Recurse -Filter "cloud_firestore_plugin.dll" -ErrorAction SilentlyContinue
+      if ($fbCore2) { Copy-Item -Force $fbCore2.FullName (Join-Path $dst2 "firebase_core_plugin.dll") }
+      if ($fsPlug2) { Copy-Item -Force $fsPlug2.FullName (Join-Path $dst2 "cloud_firestore_plugin.dll") }
+
+      if (Test-Path "$dst2\seller_app.exe") { Rename-Item "$dst2\seller_app.exe" "ELAboudy_Seller.exe" }
+
+      Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst2\VC_redist.x64.exe"
+      Set-Content -Path "$dst2\README.txt" -Value "Run VC_redist.x64.exe if the app doesn’t start, then run ELAboudy_Seller.exe"
