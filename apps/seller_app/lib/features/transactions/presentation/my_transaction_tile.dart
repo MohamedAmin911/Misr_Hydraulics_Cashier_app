@@ -1,18 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared/shared.dart';
 
 class MyTransactionTile extends ConsumerWidget {
   final SaleTransaction tx;
   const MyTransactionTile({super.key, required this.tx});
+  void copy(BuildContext context, String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم النسخ')));
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       child: ListTile(
         leading: const Icon(Icons.receipt_long_outlined),
-        title: Text('عملية رقم: ${tx.id}'),
-        subtitle: Text('التاريخ: ${tx.date} • العناصر: ${tx.items.length}'),
+        title: Row(
+          children: [
+            Text('عملية رقم: ${tx.id}'),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: () => copy(context, tx.id ?? ''),
+              icon: const Icon(Icons.copy, size: 20),
+            ),
+          ],
+        ),
+        subtitle: Text(
+          style: TextStyle(
+            color: const Color.fromARGB(255, 30, 38, 88),
+            fontWeight: FontWeight.bold,
+          ),
+          'التاريخ: ${tx.date.day}/${tx.date.month}/${tx.date.year} • الساعة: ${tx.date.hour}:${tx.date.minute} • العناصر: ${tx.items.length}',
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

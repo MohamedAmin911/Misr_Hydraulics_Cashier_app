@@ -16,7 +16,7 @@ class StatusBanner extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
-                  'لا يوجد اتصال مستقر بـ Firebase. يرجى التحقق من الإنترنت.',
+                  '.لا يوجد اتصال الإنترنت',
                   style: const TextStyle(color: Colors.white),
                   textAlign: TextAlign.center,
                 ),

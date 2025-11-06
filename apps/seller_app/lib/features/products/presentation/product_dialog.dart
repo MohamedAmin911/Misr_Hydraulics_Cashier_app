@@ -35,6 +35,11 @@ class _ProductDialogState extends ConsumerState<ProductDialog> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 InfoBubble(
+                  label: 'المعرف',
+                  value: p.id ?? '',
+                  icon: Icons.tag_outlined,
+                ),
+                InfoBubble(
                   label: 'الفئة',
                   value: p.categoryName,
                   icon: Icons.category_outlined,

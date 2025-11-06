@@ -67,7 +67,7 @@ class PdfReceiptBuilder {
 
     pw.Widget buildItemsTable() {
       final headers = forAdmin
-          ? ['الإجمالي', 'الكمية', 'سعر البيع', 'سعر الشراء', 'المنتج']
+          ? ['الإجمالي', 'الكمية', 'سعر البيع', 'التكلفة', 'المنتج']
           : ['الإجمالي', 'الكمية', 'السعر', 'المنتج'];
 
       final List<List<String>> data = [];
@@ -80,14 +80,14 @@ class PdfReceiptBuilder {
             it.quantity.toString(),
             CurrencyFormatter.format(it.sellPriceAtSale),
             CurrencyFormatter.format(it.buyPriceAtSale),
-            it.productName,
+            it.productId,
           ]);
         } else {
           data.add([
             CurrencyFormatter.format(totalSell),
             it.quantity.toString(),
             CurrencyFormatter.format(it.sellPriceAtSale),
-            it.productName,
+            it.productId,
           ]);
         }
       }
@@ -135,12 +135,14 @@ class PdfReceiptBuilder {
               style: pw.TextStyle(font: fontBold, fontSize: 12),
               textAlign: pw.TextAlign.right,
             ),
+            pw.SizedBox(height: 3),
             if (forAdmin) ...[
               pw.Text(
                 'إجمالي التكلفة: ${CurrencyFormatter.format(tx.totalCost)}',
                 style: pw.TextStyle(font: fontRegular, fontSize: 12),
                 textAlign: pw.TextAlign.right,
               ),
+              pw.SizedBox(height: 3),
               pw.Text(
                 'صافي الربح: ${CurrencyFormatter.format(tx.totalProfit)}',
                 style: pw.TextStyle(font: fontBold, fontSize: 13),

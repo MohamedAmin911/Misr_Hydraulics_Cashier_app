@@ -33,7 +33,7 @@ bool operator ==(Object other) {
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,date,sellerId,const DeepCollectionEquality().hash(items),totalSell,totalCost,totalProfit);
+int get hashCode => Object.hash(runtimeType,id,date.toIso8601String(),sellerId,const DeepCollectionEquality().hash(items),totalSell,totalCost,totalProfit);
 
 @override
 String toString() {

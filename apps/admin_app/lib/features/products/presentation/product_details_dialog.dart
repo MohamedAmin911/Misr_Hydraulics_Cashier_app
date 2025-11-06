@@ -25,6 +25,11 @@ class ProductDetailsDialog extends ConsumerWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 InfoBubble(
+                  label: 'المعرف',
+                  value: product.id!,
+                  icon: Icons.tag,
+                ),
+                InfoBubble(
                   label: 'الفئة',
                   value: product.categoryName,
                   icon: Icons.category_outlined,
@@ -37,7 +42,7 @@ class ProductDetailsDialog extends ConsumerWidget {
                     maxWidth: 520,
                   ),
                 InfoBubble(
-                  label: 'سعر الشراء',
+                  label: 'التكلفة',
                   value: CurrencyFormatter.format(product.buyPrice),
                   icon: Icons.south_west,
                 ),
@@ -48,6 +53,12 @@ class ProductDetailsDialog extends ConsumerWidget {
                 ),
                 QuantityBubble(
                   quantity: product.quantity,
+                  onMinus: () async {
+                    await repo.incrementQuantity(
+                      productId: product.id!,
+                      delta: -1,
+                    );
+                  },
                   onPlus: () async {
                     await repo.incrementQuantity(
                       productId: product.id!,
@@ -65,7 +76,7 @@ class ProductDetailsDialog extends ConsumerWidget {
             onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () async {
               final ok = await showDialog<bool>(
                 context: context,

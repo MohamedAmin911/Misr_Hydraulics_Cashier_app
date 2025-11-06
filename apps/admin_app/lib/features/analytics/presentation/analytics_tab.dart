@@ -41,19 +41,19 @@ class AnalyticsTab extends ConsumerWidget {
               children: [
                 Wrap(
                   spacing: 12,
-                  runSpacing: 12,
+                  runSpacing: 7,
                   children: [
                     _metricCard(
                       context,
                       title: 'إجمالي المبيعات',
                       value: CurrencyFormatter.format(totalSell),
-                      color: Colors.blue,
+                      color: const Color.fromARGB(255, 9, 44, 73),
                     ),
                     _metricCard(
                       context,
                       title: 'إجمالي التكلفة',
                       value: CurrencyFormatter.format(totalCost),
-                      color: Colors.orange,
+                      color: Colors.brown,
                     ),
                     _metricCard(
                       context,
@@ -89,7 +89,7 @@ class AnalyticsTab extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 13),
               ],
             );
           },
@@ -105,13 +105,13 @@ class AnalyticsTab extends ConsumerWidget {
     required Color color,
   }) {
     return SizedBox(
-      width: 280,
+      width: double.infinity,
       child: Card(
         color: color.withOpacity(0.08),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),

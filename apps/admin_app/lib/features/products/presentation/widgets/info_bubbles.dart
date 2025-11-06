@@ -95,8 +95,13 @@ class InfoBubble extends StatelessWidget {
 class QuantityBubble extends StatelessWidget {
   final int quantity;
   final VoidCallback? onPlus;
-
-  const QuantityBubble({super.key, required this.quantity, this.onPlus});
+  final VoidCallback? onMinus;
+  const QuantityBubble({
+    super.key,
+    required this.quantity,
+    this.onPlus,
+    this.onMinus,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +144,15 @@ class QuantityBubble extends StatelessWidget {
             ),
             onPressed: onPlus,
             icon: Icon(Icons.add_circle_outline, color: cs.primary),
+          ),
+          IconButton(
+            tooltip: 'انقاص 1',
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(6),
+              visualDensity: VisualDensity.compact,
+            ),
+            onPressed: onMinus,
+            icon: Icon(Icons.remove_circle_outline, color: Colors.red),
           ),
         ],
       ),

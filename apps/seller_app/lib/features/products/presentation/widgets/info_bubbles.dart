@@ -32,7 +32,7 @@ class InfoBubble extends StatelessWidget {
 
     final content = stacked
         ? Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(

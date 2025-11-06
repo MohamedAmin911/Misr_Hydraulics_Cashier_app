@@ -6,13 +6,18 @@ import 'package:shared/shared.dart';
 import 'transaction_tile.dart';
 import 'sort_menu.dart';
 
+// Sort order
 final txSortProvider = StateProvider<TxSortOrder>((ref) => TxSortOrder.desc);
 
+// Realtime transactions
 final transactionsStreamProvider =
     StreamProvider.autoDispose<List<SaleTransaction>>((ref) {
       final order = ref.watch(txSortProvider);
       return ref.watch(transactionRepositoryProvider).watchAll(order: order);
     });
+
+// Search query
+final txQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
 class TransactionsTab extends ConsumerWidget {
   const TransactionsTab({super.key});
@@ -20,6 +25,7 @@ class TransactionsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final txs = ref.watch(transactionsStreamProvider);
+    final query = ref.watch(txQueryProvider);
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -27,6 +33,28 @@ class TransactionsTab extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Search bar (kept SortMenu separate just like your original UI)
+            TextField(
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.right,
+              onChanged: (v) =>
+                  ref.read(txQueryProvider.notifier).state = v.trim(),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'ابحث برقم العملية أو معرف البائع أو اسم المنتج',
+                suffixIcon: query.isNotEmpty
+                    ? IconButton(
+                        tooltip: 'مسح',
+                        onPressed: () =>
+                            ref.read(txQueryProvider.notifier).state = '',
+                        icon: const Icon(Icons.clear),
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Your existing SortMenu placement
             Align(
               alignment: Alignment.centerLeft,
               child: SortMenu(
@@ -35,18 +63,44 @@ class TransactionsTab extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
+
+            // List
             Expanded(
               child: txs.when(
                 loading: () => const Loading(),
                 error: (e, st) => Center(child: Text('خطأ: $e')),
                 data: (list) {
-                  if (list.isEmpty)
-                    return const Center(child: Text('لا توجد عمليات بعد'));
+                  // Filter by ID, sellerId, or any productName in items
+                  final q = query.trim().toLowerCase();
+                  final filtered = q.isEmpty
+                      ? list
+                      : list.where((t) {
+                          final id = (t.id ?? '').toLowerCase();
+                          final seller = t.sellerId.toLowerCase();
+                          if (id.contains(q) || seller.contains(q)) return true;
+                          for (final it in t.items) {
+                            if (it.productName.toLowerCase().contains(q)) {
+                              return true;
+                            }
+                          }
+                          return false;
+                        }).toList();
+
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: Text(
+                        q.isEmpty
+                            ? 'لا توجد عمليات بعد'
+                            : 'لا توجد نتائج مطابقة لـ "$q"',
+                      ),
+                    );
+                  }
+
                   return ListView.separated(
-                    itemCount: list.length,
+                    itemCount: filtered.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, i) =>
-                        TransactionTile(tx: list[i], forAdmin: true),
+                        TransactionTile(tx: filtered[i], forAdmin: true),
                   );
                 },
               ),
