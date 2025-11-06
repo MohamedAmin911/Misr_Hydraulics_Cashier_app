@@ -42,37 +42,69 @@ class CartTab extends ConsumerWidget {
                     ? () async {
                         try {
                           final repo = ref.read(transactionRepositoryProvider);
+                          final currentSeller = ref.read(sellerAuthProvider);
+                          if (currentSeller == null) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'انتهت الجلسة، يرجى تسجيل الدخول مجدداً',
+                                  ),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+
                           final tx = await repo.createFromCart(
-                            sellerId: seller.id!,
+                            sellerId: currentSeller.id!,
                             items: items,
                           );
-                          // clear cart
+
+                          // Clear cart first so UI stabilizes
                           ref.read(cartProvider.notifier).clear();
-                          // Auto-generate and print receipt (seller version)
-                          final bytes = await PdfReceiptBuilder.build(
-                            tx: tx,
-                            forAdmin: false,
-                          );
-                          await PrintingService.directPrintIfSupported(bytes);
+
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'تمت العملية بنجاح وتمت طباعة الفاتورة',
+                                  'تمت العملية بنجاح، سيتم طباعة الفاتورة...',
                                 ),
                               ),
                             );
                           }
+
+                          // Defer printing a bit to avoid native dialog race on Windows
+                          Future.delayed(
+                            const Duration(milliseconds: 400),
+                            () async {
+                              try {
+                                final bytes = await PdfReceiptBuilder.build(
+                                  tx: tx,
+                                  forAdmin: false,
+                                );
+                                await PrintingService.printPdf(
+                                  bytes,
+                                  jobName: 'إيصال ELAboudy',
+                                );
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'تعذرت الطباعة، تم حفظ/فتح الفاتورة كملف PDF. ($e)',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          );
                         } catch (e) {
-                          final s = e.toString();
-                          final i = s.indexOf(':');
-                          final message = i != -1
-                              ? s.substring(i + 1).trim()
-                              : s;
                           if (context.mounted) {
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(SnackBar(content: Text(message)));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('فشل إتمام العملية: $e')),
+                            );
                           }
                         }
                       }
