@@ -18,26 +18,44 @@ class PrintingService {
         format: PdfPageFormat.a4,
         dynamicLayout: false,
       );
-    } catch (e) {
-      // Fallback: save to temp + open/share
-      try {
-        final dir = await getTemporaryDirectory();
-        final path = p.join(
-          dir.path,
-          'receipt${DateTime.now().millisecondsSinceEpoch}.pdf',
-        );
-        final f = File(path);
-        await f.writeAsBytes(bytes, flush: true);
-        try {
-          await Printing.sharePdf(bytes: bytes, filename: p.basename(path));
-        } catch (e) {
-          if (Platform.isWindows) {
-            await Process.run('cmd', ['/c', 'start', '', path]);
-          }
-        }
-      } catch (e) {
-        // swallow to avoid release crash
-      }
+    } catch (_) {
+      // Silent: manual print path only. If needed, we can show a snackbar where this is called.
+    }
+  }
+
+  // Save to temp and open with default PDF app (safe on Windows).
+  static Future<String?> savePdf(Uint8List bytes, {String? filename}) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final name = filename?.trim().isNotEmpty == true
+          ? filename!
+          : 'receipt_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path = p.join(dir.path, name);
+      final f = File(path);
+      await f.writeAsBytes(bytes, flush: true);
+      return path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> openFile(String path) async {
+    if (Platform.isWindows) {
+      await Process.run('cmd', ['/c', 'start', '', path]);
+    } else if (Platform.isMacOS) {
+      await Process.run('open', [path]);
+    } else if (Platform.isLinux) {
+      await Process.run('xdg-open', [path]);
+    }
+  }
+
+  static Future<void> saveAndOpenPdf(
+    Uint8List bytes, {
+    String? filename,
+  }) async {
+    final path = await savePdf(bytes, filename: filename);
+    if (path != null) {
+      await openFile(path);
     }
   }
 
