@@ -1,0 +1,123 @@
+name: Build Windows apps
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/"
+      - "packages/"
+      - ".github/workflows/"
+  pull_request:
+    paths:
+      - "apps/"
+      - "packages/"
+      - ".github/workflows/"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Use Flutter with Dart >= 3.9 (matches your shared SDK constraint)
+      - name: Set up Flutter 3.35.7 (Dart 3.9+)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.7"
+          cache: false
+
+      - name: Show versions
+        shell: pwsh
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      # CI cannot run flutterfire configure, so ensure these exist
+      - name: Check firebase_options.dart presence
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "apps/admin_app/lib/firebase_options.dart")) { throw "Missing: apps/admin_app/lib/firebase_options.dart" }
+          if (-not (Test-Path "apps/seller_app/lib/firebase_options.dart")) { throw "Missing: apps/seller_app/lib/firebase_options.dart" }
+
+      # Shared package: deps + codegen
+      - name: Pub get (shared)
+        working-directory: packages/shared
+        run: flutter pub get
+
+      - name: Generate model code (freezed/json_serializable)
+        working-directory: packages/shared
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      # Admin app (now builds lib/main.dart by default)
+      - name: Pub get (admin_app)
+        working-directory: apps/admin_app
+        run: flutter pub get
+
+      - name: Build admin_app (Windows)
+        working-directory: apps/admin_app
+        run: flutter build windows --release
+
+      # Seller app (now builds lib/main.dart by default)
+      - name: Pub get (seller_app)
+        working-directory: apps/seller_app
+        run: flutter pub get
+
+      - name: Build seller_app (Windows)
+        working-directory: apps/seller_app
+        run: flutter build windows --release
+
+      # Package Admin (copy runner output + any plugin/runtime DLLs, add VC++ redist)
+      - name: Package admin_app artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $buildRoot = "apps/admin_app/build/windows"
+          $runner    = "$buildRoot/x64/runner/Release"
+          $dst       = "dist/ELAboudy_Admin_${{ github.run_number }}"
+          Copy-Item -Recurse -Force "$runner/*" "$dst"
+          # Sweep extra DLLs that might live under build/windows/plugins/**
+          Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -Force $_.FullName (Join-Path $dst $_.Name)
+          }
+          if (Test-Path "$dst/admin_app.exe") { Rename-Item "$dst/admin_app.exe" "ELAboudy_Admin.exe" }
+          Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst\VC_redist.x64.exe"
+          Write-Host "Plugin DLLs in dist:"
+          Get-ChildItem $dst -Filter *_plugin.dll -Name
+          Compress-Archive -Path "$dst/*" -DestinationPath "$dst.zip" -Force
+
+      - name: Upload admin_app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ELAboudy_Admin_Windows
+          path: dist/ELAboudy_Admin_${{ github.run_number }}.zip
+          if-no-files-found: error
+
+      # Package Seller (same as Admin)
+      - name: Package seller_app artifact
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $buildRoot = "apps/seller_app/build/windows"
+          $runner    = "$buildRoot/x64/runner/Release"
+          $dst       = "dist/ELAboudy_Seller_${{ github.run_number }}"
+          Copy-Item -Recurse -Force "$runner/*" "$dst"
+          Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -Force $_.FullName (Join-Path $dst $_.Name)
+          }
+          if (Test-Path "$dst/seller_app.exe") { Rename-Item "$dst/seller_app.exe" "ELAboudy_Seller.exe" }
+          Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst\VC_redist.x64.exe"
+          Write-Host "Plugin DLLs in dist:"
+          Get-ChildItem $dst -Filter *_plugin.dll -Name
+          Compress-Archive -Path "$dst/*" -DestinationPath "$dst.zip" -Force
+
+      - name: Upload seller_app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ELAboudy_Seller_Windows
+          path: dist/ELAboudy_Seller_${{ github.run_number }}.zip
+          if-no-files-found: error
