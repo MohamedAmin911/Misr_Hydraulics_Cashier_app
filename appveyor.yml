@@ -1,0 +1,86 @@
+version: '{build}'
+
+image: Visual Studio 2022
+
+build_script:
+  ps: |
+    # 1) Install Flutter 3.35.7 (Dart 3.9+)
+    if (!(Test-Path "C:\flutter")) {
+      git clone https://github.com/flutter/flutter.git -b 3.35.7 C:\flutter
+    }
+    $env:Path = "C:\flutter\bin;" + $env:Path
+    flutter --version
+    dart --version
+
+    # 2) Enable Windows desktop
+    flutter config --enable-windows-desktop
+
+    # 3) Sanity check: firebase_options.dart
+    if (-not (Test-Path "apps/admin_app/lib/firebase_options.dart")) { throw "Missing admin firebase_options.dart" }
+    if (-not (Test-Path "apps/seller_app/lib/firebase_options.dart")) { throw "Missing seller firebase_options.dart" }
+
+    # 4) Shared deps + codegen
+    Push-Location packages/shared
+    flutter pub get
+    flutter pub run build_runner build --delete-conflicting-outputs
+    Pop-Location
+
+    # 5) Build Admin
+    Push-Location apps/admin_app
+    flutter pub get
+    if (Test-Path "lib/admin.dart") {
+      flutter build windows --release -t lib/admin.dart
+    } elseif (Test-Path "lib/main_admin.dart") {
+      flutter build windows --release -t lib/main_admin.dart
+    } else {
+      Write-Host "⚠️ No admin entry file found — skipping Admin build."
+    }
+    Pop-Location
+
+    # 6) Build Seller
+    Push-Location apps/seller_app
+    flutter pub get
+    if (Test-Path "lib/seller.dart") {
+      flutter build windows --release -t lib/seller.dart
+    } elseif (Test-Path "lib/main_seller.dart") {
+      flutter build windows --release -t lib/main_seller.dart
+    } else {
+      Write-Host "⚠️ No seller entry file found — skipping Seller build."
+    }
+    Pop-Location
+
+    # 7) Package Admin
+    New-Item -ItemType Directory -Force -Path dist | Out-Null
+    $buildRoot = "apps/admin_app/build/windows"
+    $runner = "$buildRoot/x64/runner/Release"
+    if (Test-Path $runner) {
+      $dst = "dist\ELAboudy_Admin_$($env:APPVEYOR_BUILD_NUMBER)"
+      Copy-Item -Recurse -Force "$runner\*" "$dst"
+      Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+        Copy-Item -Force $_.FullName (Join-Path $dst $_.Name)
+      }
+      if (Test-Path "$dst\admin_app.exe") { Rename-Item "$dst\admin_app.exe" "ELAboudy_Admin.exe" }
+      Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst\VC_redist.x64.exe"
+      Set-Content -Path "$dst\README.txt" -Value "Run VC_redist.x64.exe if the app doesn’t start, then run ELAboudy_Admin.exe"
+    } else {
+      Write-Host "⚠️ Admin runner output not found — skipping Admin packaging."
+    }
+
+    # 8) Package Seller
+    $buildRoot = "apps/seller_app/build/windows"
+    $runner = "$buildRoot/x64/runner/Release"
+    if (Test-Path $runner) {
+      $dst2 = "dist\ELAboudy_Seller_$($env:APPVEYOR_BUILD_NUMBER)"
+      Copy-Item -Recurse -Force "$runner\*" "$dst2"
+      Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+        Copy-Item -Force $_.FullName (Join-Path $dst2 $_.Name)
+      }
+      if (Test-Path "$dst2\seller_app.exe") { Rename-Item "$dst2\seller_app.exe" "ELAboudy_Seller.exe" }
+      Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst2\VC_redist.x64.exe"
+      Set-Content -Path "$dst2\README.txt" -Value "Run VC_redist.x64.exe if the app doesn’t start, then run ELAboudy_Seller.exe"
+    } else {
+      Write-Host "⚠️ Seller runner output not found — skipping Seller packaging."
+    }
+
+artifacts:
+  - path: dist/*
