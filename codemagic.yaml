@@ -1,0 +1,69 @@
+workflows:
+  windows-build:
+    name: Build Windows apps
+    instance_type: windows_x2
+    max_build_duration: 60
+    environment:
+      flutter: 3.35.7
+
+    scripts:
+      - name: Show versions
+        script: |
+          flutter --version
+          dart --version
+
+      - name: Enable Windows desktop
+        script: flutter config --enable-windows-desktop
+
+      - name: Check firebase_options.dart
+        script: |
+          if (!(Test-Path "apps/admin_app/lib/firebase_options.dart")) { throw "Missing admin firebase_options.dart" }
+          if (!(Test-Path "apps/seller_app/lib/firebase_options.dart")) { throw "Missing seller firebase_options.dart" }
+
+      - name: Shared deps + codegen
+        script: |
+          cd packages/shared
+          flutter pub get
+          flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build Admin
+        script: |
+          cd $CM_BUILD_DIR/apps/admin_app
+          flutter pub get
+          flutter build windows --release -t lib/main_admin.dart
+
+      - name: Build Seller
+        script: |
+          cd $CM_BUILD_DIR/apps/seller_app
+          flutter pub get
+          flutter build windows --release -t lib/main_seller.dart
+
+      - name: Package Admin
+        script: |
+          cd $CM_BUILD_DIR
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $buildRoot = "apps/admin_app/build/windows"
+          $runner = "$buildRoot/x64/runner/Release"
+          $dst = "dist/ELAboudy_Admin_${CM_BUILD_ID}"
+          Copy-Item -Recurse -Force "$runner/*" "$dst"
+          Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -Force $_.FullName (Join-Path $dst $_.Name)
+          }
+          if (Test-Path "$dst/admin_app.exe") { Rename-Item "$dst/admin_app.exe" "ELAboudy_Admin.exe" }
+          Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst\VC_redist.x64.exe"
+
+      - name: Package Seller
+        script: |
+          cd $CM_BUILD_DIR
+          $buildRoot = "apps/seller_app/build/windows"
+          $runner = "$buildRoot/x64/runner/Release"
+          $dst2 = "dist/ELAboudy_Seller_${CM_BUILD_ID}"
+          Copy-Item -Recurse -Force "$runner/*" "$dst2"
+          Get-ChildItem -Path $buildRoot -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -Force $_.FullName (Join-Path $dst2 $_.Name)
+          }
+          if (Test-Path "$dst2/seller_app.exe") { Rename-Item "$dst2/seller_app.exe" "ELAboudy_Seller.exe" }
+          Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vc_redist.x64.exe -OutFile "$dst2\VC_redist.x64.exe"
+
+    artifacts:
+      - dist/*
